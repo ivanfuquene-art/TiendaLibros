@@ -59,7 +59,6 @@ public class PanelFormulario extends JPanel {
         add(cbIva);
     }
 
-    // Getters para capturar la información ingresada
     public String getIsbn() { return txtIsbn.getText().trim(); }
     public String getTitulo() { return txtTitulo.getText().trim(); }
     public String getAutor() { return txtAutor.getText().trim(); }

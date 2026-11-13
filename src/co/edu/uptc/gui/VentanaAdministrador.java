@@ -7,17 +7,15 @@ import java.awt.event.ActionListener;
 import java.util.ArrayList;
 import javax.swing.*;
 
-public class VentanaPrincipal extends JFrame {
+public class VentanaAdministrador extends JFrame {
 
     private PanelFormulario panelFormulario;
     private PanelTabla panelTabla;
     private JButton buttonAceptar;
     private JButton buttonCancelar;
-
-    // Estructura en memoria para almacenar los libros creados
     private ArrayList<Libro> listaLibros;
 
-    public VentanaPrincipal() {
+    public VentanaAdministrador() {
         setSize(900, 480);
         setTitle("Gestión de Tienda Virtual - Libros");
         setLayout(new BorderLayout());
@@ -41,7 +39,6 @@ public class VentanaPrincipal extends JFrame {
         add(panelTabla, BorderLayout.CENTER);
         add(panelBotones, BorderLayout.SOUTH);
 
-        // Evento Guardar: Lee los datos, valida tipos numéricos y asigna a tu clase Libro
         buttonAceptar.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -59,19 +56,16 @@ public class VentanaPrincipal extends JFrame {
 
     private void guardarLibro() {
         try {
-            // Validar que los campos de texto no estén vacíos
             if (panelFormulario.getIsbn().isEmpty() || panelFormulario.getTitulo().isEmpty()) {
                 JOptionPane.showMessageDialog(this, "El ISBN y el Título son campos obligatorios.", "Advertencia", JOptionPane.WARNING_MESSAGE);
                 return;
             }
 
-            // Conversión de tipos numéricos
             int anio = Integer.parseInt(panelFormulario.getAnio());
             int numPag = Integer.parseInt(panelFormulario.getNumPag());
             double precio = Double.parseDouble(panelFormulario.getPrecio());
             int stock = Integer.parseInt(panelFormulario.getStock());
 
-            // Instancia de la clase Libro de co.edu.uptc.negocio
             Libro nuevoLibro = new Libro(
                 panelFormulario.getIsbn(),
                 panelFormulario.getTitulo(),
@@ -86,19 +80,14 @@ public class VentanaPrincipal extends JFrame {
                 panelFormulario.getPorcentajeIva()
             );
 
-            // Guardar en lista y refrescar tabla
             listaLibros.add(nuevoLibro);
             panelTabla.agregarLibroTabla(nuevoLibro);
 
             JOptionPane.showMessageDialog(this, "El libro se ha registrado.");
 
         } catch (NumberFormatException ex) {
-            JOptionPane.showMessageDialog(this, "Ponga valores numéricos en Año, Páginas, Precio y Stock.", "Error de Formato", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Ponga valores numericos en Año, Paginas, Precio y Stock.", "Error de formato", JOptionPane.ERROR_MESSAGE);
         }
     }
 
-    public static void main(String[] args) {
-            VentanaPrincipal aplicacion = new VentanaPrincipal();
-            aplicacion.setVisible(true);
-        };
 }
