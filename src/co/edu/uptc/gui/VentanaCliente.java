@@ -90,7 +90,7 @@ public class VentanaCliente extends JFrame {
                 if (modeloCarrito.getRowCount() == 0) {
                     JOptionPane.showMessageDialog(VentanaCliente.this, "El carrito esta vacio.", "Atencion", JOptionPane.WARNING_MESSAGE);
                 } else {
-                    Recibo ventanaRecibo = new Recibo(VentanaCliente.this, modeloCarrito, modeloCatalogo, clienteActual);
+                    VentanaRecibo ventanaRecibo = new VentanaRecibo(VentanaCliente.this, modeloCarrito, modeloCatalogo, clienteActual);
                     ventanaRecibo.setVisible(true);
                     actualizarTotal();
                 }

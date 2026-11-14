@@ -3,6 +3,8 @@ package co.edu.uptc.gui;
 import java.awt.*;
 import javax.swing.*;
 
+import co.edu.uptc.negocio.Libro.Formato;
+
 public class PanelFormulario extends JPanel {
 
     private JTextField txtIsbn;
@@ -14,7 +16,7 @@ public class PanelFormulario extends JPanel {
     private JTextField txtNumPag;
     private JTextField txtPrecio;
     private JTextField txtStock;
-    private JComboBox<String> cbFormato;
+    private JComboBox<Formato> cbFormato;
     private JComboBox<Integer> cbIva;
 
     public PanelFormulario() {
@@ -31,8 +33,7 @@ public class PanelFormulario extends JPanel {
         txtNumPag = new JTextField();
         txtPrecio = new JTextField();
         txtStock = new JTextField();
-        
-        cbFormato = new JComboBox<>(new String[]{"Físico", "Digital"});
+        cbFormato = new JComboBox<>(Formato.values());
         cbIva = new JComboBox<>(new Integer[]{19, 5});
 
         add(new JLabel("ISBN:"));
@@ -68,7 +69,7 @@ public class PanelFormulario extends JPanel {
     public String getNumPag() { return txtNumPag.getText().trim(); }
     public String getPrecio() { return txtPrecio.getText().trim(); }
     public String getStock() { return txtStock.getText().trim(); }
-    public String getFormato() { return (String) cbFormato.getSelectedItem(); }
+    public Formato getFormato() {return (Formato) cbFormato.getSelectedItem(); }
     public int getPorcentajeIva() { return (Integer) cbIva.getSelectedItem(); }
     
     public void limpiarCampos() {
@@ -81,6 +82,7 @@ public class PanelFormulario extends JPanel {
         txtNumPag.setText("");
         txtPrecio.setText("");
         txtStock.setText("");
+        cbFormato.setSelectedIndex(0);
     }
 
 }

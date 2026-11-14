@@ -8,14 +8,14 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
-public class Recibo extends JDialog {
+public class VentanaRecibo extends JDialog {
 
     private DefaultTableModel modeloCarrito;
     private DefaultTableModel modeloCatalogo;
     private Cliente clienteActual;
     private double totalNeto;
 
-    public Recibo(JFrame parent, DefaultTableModel carrito, DefaultTableModel catalogo, Cliente cliente) {
+    public VentanaRecibo(JFrame parent, DefaultTableModel carrito, DefaultTableModel catalogo, Cliente cliente) {
         super(parent, "Finalizar Compra - Recibo", true);
         this.modeloCarrito = carrito;
         this.modeloCatalogo = catalogo;
