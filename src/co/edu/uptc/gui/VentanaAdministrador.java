@@ -14,18 +14,25 @@ public class VentanaAdministrador extends JFrame {
     private JButton buttonActualizar;
     private JButton buttonEliminar;
     private JButton buttonCancelar;
+    private JButton buttonCerrarSesion;
 
     private GestorTienda gestorTienda;
 
+/*  Constructor vacío por si ejecutas esta ventana directamente en pruebas
     public VentanaAdministrador() {
+        this(new GestorTienda());
+    } */
+
+    // Constructor que recibe el GestorTienda compartido desde VentanaLogin
+    public VentanaAdministrador(GestorTienda gestorTienda) {
+        this.gestorTienda = gestorTienda;
+
         setSize(950, 500);
         setTitle("Gestión de Tienda Virtual - Administrador");
         setLayout(new BorderLayout());
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setResizable(false);
         setLocationRelativeTo(null);
-
-        gestorTienda = new GestorTienda();
 
         panelFormulario = new PanelFormulario();
         panelTabla = new PanelTabla();
@@ -34,12 +41,14 @@ public class VentanaAdministrador extends JFrame {
         buttonActualizar = new JButton("Actualizar Libro");
         buttonEliminar = new JButton("Eliminar Libro");
         buttonCancelar = new JButton("Limpiar / Cancelar");
+        buttonCerrarSesion = new JButton("Cerrar Sesión");
 
         JPanel panelBotones = new JPanel();
         panelBotones.add(buttonAceptar);
         panelBotones.add(buttonActualizar);
         panelBotones.add(buttonEliminar);
         panelBotones.add(buttonCancelar);
+        panelBotones.add(buttonCerrarSesion);
 
         add(panelFormulario, BorderLayout.WEST);
         add(panelTabla, BorderLayout.CENTER);
@@ -51,6 +60,10 @@ public class VentanaAdministrador extends JFrame {
         buttonActualizar.addActionListener(e -> actualizarLibro());
         buttonEliminar.addActionListener(e -> eliminarLibro());
         buttonCancelar.addActionListener(e -> panelFormulario.limpiarCampos());
+        buttonCerrarSesion.addActionListener(e -> {
+            new VentanaLogin(this.gestorTienda).setVisible(true);
+            dispose();
+        });
     }
 
     private void cargarCatalogoBD() {
@@ -61,7 +74,7 @@ public class VentanaAdministrador extends JFrame {
         }
     }
 
-    private Libro LibroFormulario() throws NumberFormatException {
+    private Libro libroFormulario() throws NumberFormatException {
         int anio = Integer.parseInt(panelFormulario.getAnio());
         int numPag = Integer.parseInt(panelFormulario.getNumPag());
         double precio = Double.parseDouble(panelFormulario.getPrecio());
@@ -89,7 +102,7 @@ public class VentanaAdministrador extends JFrame {
                 return;
             }
 
-            Libro nuevoLibro = LibroFormulario();
+            Libro nuevoLibro = libroFormulario();
 
             if (gestorTienda.registrarLibro(nuevoLibro)) {
                 cargarCatalogoBD();
@@ -111,7 +124,7 @@ public class VentanaAdministrador extends JFrame {
                 return;
             }
 
-            Libro libroEditado = LibroFormulario();
+            Libro libroEditado = libroFormulario();
 
             if (gestorTienda.actualizarLibro(libroEditado)) {
                 cargarCatalogoBD();

@@ -2,124 +2,78 @@ package co.edu.uptc.gui;
 
 import co.edu.uptc.negocio.Cliente;
 import co.edu.uptc.negocio.ClientePremium;
+import co.edu.uptc.negocio.ItemCarrito;
 import javax.swing.*;
-import javax.swing.table.DefaultTableModel;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 public class VentanaRecibo extends JDialog {
 
-    private DefaultTableModel modeloCarrito;
-    private DefaultTableModel modeloCatalogo;
-    private Cliente clienteActual;
-    private double totalNeto;
-
-    public VentanaRecibo(JFrame parent, DefaultTableModel carrito, DefaultTableModel catalogo, Cliente cliente) {
-        super(parent, "Finalizar Compra - Recibo", true);
-        this.modeloCarrito = carrito;
-        this.modeloCatalogo = catalogo;
-        this.clienteActual = cliente;
-
-        setSize(400, 450);
-        setLocationRelativeTo(parent);
+    public VentanaRecibo(JFrame padre, Cliente cliente, List<ItemCarrito> items,
+                         double subtotal, double iva, double descuento, double total) {
+        super(padre, "Comprobante de Compra", true);
+        setSize(450, 520);
+        setLocationRelativeTo(padre);
         setLayout(new BorderLayout(10, 10));
 
-        JTextArea txtResumen = new JTextArea();
-        txtResumen.setEditable(false);
-        txtResumen.setFont(new Font("Monospaced", Font.PLAIN, 12));
-        txtResumen.setText(generarTextoResumen());
-        add(new JScrollPane(txtResumen), BorderLayout.CENTER);
+        JTextArea areaRecibo = new JTextArea();
+        areaRecibo.setEditable(false);
+        areaRecibo.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        areaRecibo.setMargin(new Insets(10, 10, 10, 10));
 
-        JPanel panelInferior = new JPanel(new GridLayout(2, 1, 5, 5));
-        panelInferior.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-        
-        JPanel panelPago = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        panelPago.add(new JLabel("Método de Pago:"));
-        String[] metodos = {"Tarjeta de Crédito", "PSE / Transferencia", "Efectivo"};
-        JComboBox<String> cbMetodoPago = new JComboBox<>(metodos);
-        panelPago.add(cbMetodoPago);
+        areaRecibo.setText(generarTextoRecibo(cliente, items, subtotal, iva, descuento, total));
 
-        JPanel panelBotones = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        JButton btnConfirmar = new JButton("Confirmar y Pagar");
-        JButton btnCancelar = new JButton("Cancelar");
-        
-        btnConfirmar.setBackground(new Color(34, 139, 34));
-        btnConfirmar.setForeground(Color.WHITE);
+        add(new JScrollPane(areaRecibo), BorderLayout.CENTER);
 
-        panelBotones.add(btnCancelar);
-        panelBotones.add(btnConfirmar);
-
-        panelInferior.add(panelPago);
-        panelInferior.add(panelBotones);
-        add(panelInferior, BorderLayout.SOUTH);
-
-        btnCancelar.addActionListener(e -> dispose());
-
-        btnConfirmar.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                procesarCompra(cbMetodoPago.getSelectedItem().toString());
-            }
-        });
+        JButton btnCerrar = new JButton("Aceptar y Cerrar");
+        btnCerrar.addActionListener(e -> dispose());
+        JPanel panelSur = new JPanel();
+        panelSur.add(btnCerrar);
+        add(panelSur, BorderLayout.SOUTH);
     }
 
-    private String generarTextoResumen() {
-        StringBuilder sb = new StringBuilder();
-        String tipo = (clienteActual instanceof ClientePremium) ? "PREMIUM" : "REGULAR";
-        
-        sb.append("========== RESUMEN DE COMPRA ==========\n");
-        sb.append("Cliente: ").append(clienteActual.getNombreCompleto()).append(" (").append(tipo).append(")\n\n");
-        sb.append(String.format("%-10s %-20s %-5s %s\n", "ISBN", "LIBRO", "CANT", "SUBTOTAL"));
-        sb.append("---------------------------------------\n");
+    private String generarTextoRecibo(Cliente cliente, List<ItemCarrito> items,
+                                      double subtotal, double iva, double descuento, double total) {
+        StringBuilder factura = new StringBuilder();
+        String fecha = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        factura.append("        TIENDA VIRTUAL DE LIBROS UPTC        \n");
+        factura.append("=============================================\n");
+        factura.append("Fecha:      ").append(fecha).append("\n");
+        factura.append("Cliente:    ").append(cliente.getNombreCompleto()).append("\n");
+        factura.append("Correo:     ").append(cliente.getCorreo()).append("\n");
+        factura.append("Teléfono:   ").append(cliente.getTelefono()).append("\n");
+        factura.append("Envío a:    ").append(cliente.getDireccion()).append("\n");
+        factura.append("Categoría:  ").append(cliente.getTipoCliente()).append("\n");
+        factura.append("---------------------------------------------\n");
+        factura.append(String.format("%-20s %5s %14s\n", "LIBRO", "CANT", "SUBTOTAL"));
+        factura.append("---------------------------------------------\n");
 
-        double subtotalAcumulado = 0;
-        for (int i = 0; i < modeloCarrito.getRowCount(); i++) {
-            String isbn = modeloCarrito.getValueAt(i, 0).toString();
-            String titulo = modeloCarrito.getValueAt(i, 1).toString();
-            if(titulo.length() > 18) titulo = titulo.substring(0, 15) + "...";
-            
-            String cant = modeloCarrito.getValueAt(i, 2).toString();
-            double sub = (double) modeloCarrito.getValueAt(i, 3);
-            subtotalAcumulado += sub;
-
-            sb.append(String.format("%-10s %-20s %-5s $%.2f\n", isbn, titulo, cant, sub));
-        }
-        
-        double descuento = clienteActual.calcularDescuento(subtotalAcumulado);
-        this.totalNeto = subtotalAcumulado - descuento;
-
-        sb.append("---------------------------------------\n");
-        sb.append(String.format("SUBTOTAL:           $%.2f\n", subtotalAcumulado));
-        sb.append(String.format("DESCUENTO (%s): -$%.2f\n", tipo, descuento));
-        sb.append(String.format("TOTAL A PAGAR:      $%.2f\n", totalNeto));
-        sb.append("=======================================\n");
-        return sb.toString();
-    }
-
-    private void procesarCompra(String metodoPago) {
-        for (int i = 0; i < modeloCarrito.getRowCount(); i++) {
-            String isbnCarrito = modeloCarrito.getValueAt(i, 0).toString();
-            int cantComprada = (int) modeloCarrito.getValueAt(i, 2);
-
-            for (int j = 0; j < modeloCatalogo.getRowCount(); j++) {
-                if (modeloCatalogo.getValueAt(j, 0).equals(isbnCarrito)) {
-                    int stockActual = (int) modeloCatalogo.getValueAt(j, 4);
-                    modeloCatalogo.setValueAt(stockActual - cantComprada, j, 4);
-                    break;
-                }
+        for (ItemCarrito item : items) {
+            String titulo = item.getLibro().getTitulo();
+            if (titulo.length() > 19) {
+                titulo = titulo.substring(0, 19);
             }
+            factura.append(String.format("%-20s %5d %14.2f\n",
+                    titulo, item.getCantidad(), item.calcularSubtotal()));
         }
 
-        String mensajeFinal = "¡COMPRA EXITOSA!\n\n" +
-                              "Método de Pago: " + metodoPago + "\n" +
-                              "Total Pagado: $" + totalNeto + "\n\n" +
-                              "El inventario ha sido actualizado.\n" +
-                              "Gracias por su compra.";
+        factura.append("---------------------------------------------\n");
+        factura.append(String.format("Subtotal:                     $%12.2f\n", subtotal));
+        factura.append(String.format("IVA Total:                    $%12.2f\n", iva));
+        factura.append(String.format("Descuento Cliente:           -$%12.2f\n", descuento));
+        factura.append("=============================================\n");
+        factura.append(String.format("TOTAL PAGADO:                 $%12.2f\n", total));
+        factura.append("=============================================\n");
 
-        JOptionPane.showMessageDialog(this, mensajeFinal, "Recibo de Compra", JOptionPane.INFORMATION_MESSAGE);
-        
-        modeloCarrito.setRowCount(0); 
-        dispose(); 
+        if (cliente instanceof ClientePremium) {
+            factura.append("\n* Beneficio Premium aplicado:\n");
+            factura.append("  ").append(((ClientePremium) cliente).obtenerBeneficios()).append("\n");
+        }
+
+        factura.append("¡Gracias por su compra!\n");
+
+        return factura.toString();
     }
 }
