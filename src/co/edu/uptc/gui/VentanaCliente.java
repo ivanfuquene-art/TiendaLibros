@@ -1,150 +1,261 @@
 package co.edu.uptc.gui;
 
-import co.edu.uptc.negocio.Cliente;
-import co.edu.uptc.negocio.ClientePremium;
+import co.edu.uptc.negocio.*;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
+import java.util.ArrayList;
+import java.util.List;
 
 public class VentanaCliente extends JFrame {
 
+    private GestorTienda gestor;
     private Cliente clienteActual;
-    private JTable tablaCatalogo;
-    private DefaultTableModel modeloCatalogo;
+    private List<ItemCarrito> carrito;
+
+    private JLabel lblInfoCliente;
+    private PanelTabla panelTablaCatalogo;
     private JTable tablaCarrito;
     private DefaultTableModel modeloCarrito;
-    private JLabel lblDescuento;
-    private JLabel lblTotalPagar;
+    private JLabel lblResumenTotales;
 
-    public VentanaCliente(Cliente cliente) {
-        this.clienteActual = cliente;
-        
-        String tipoCliente = (cliente instanceof ClientePremium) ? "PREMIUM" : "REGULAR";
-        setTitle("Tienda Virtual - Bienvenido " + cliente.getNombreCompleto() + " [" + tipoCliente + "]");
-        
-        setSize(850, 600);
-        setDefaultCloseOperation(EXIT_ON_CLOSE);
+    public VentanaCliente(GestorTienda gestor, Cliente clienteActual) {
+        this.gestor = gestor;
+        this.clienteActual = clienteActual;
+        this.carrito = new ArrayList<>();
+
+        setTitle("Tienda Virtual - Catálogo y Compras");
+        setSize(950, 560);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
-        setLayout(new BorderLayout());
+        inicializarComponentes();
+        cargarCatalogo();
+        actualizarTablaCarrito();
+    }
 
-        JPanel panelCatalogo = new JPanel(new BorderLayout());
-        panelCatalogo.setBorder(BorderFactory.createTitledBorder("Catálogo de Libros Disponibles"));
-        
+    private void inicializarComponentes() {
+        setLayout(new BorderLayout(10, 10));
 
-        String[] columnasCatalogo = {"ISBN", "Título", "Autor", "Precio", "Stock"};
-        modeloCatalogo = new DefaultTableModel(columnasCatalogo, 0);
-        tablaCatalogo = new JTable(modeloCatalogo);
-        
-        modeloCatalogo.addRow(new Object[]{"001", "Cien Años de Soledad", "G. García Márquez", 50000.0, 10});
-        modeloCatalogo.addRow(new Object[]{"002", "Clean Code", "Robert C. Martin", 85000.0, 5});
-        
-        panelCatalogo.add(new JScrollPane(tablaCatalogo), BorderLayout.CENTER);
-        
+        // Panel Superior en 2 filas para que el texto largo no se monte sobre los botones
+        JPanel panelSuperior = new JPanel(new GridLayout(2, 1, 5, 5));
+        panelSuperior.setBorder(BorderFactory.createEmptyBorder(10, 10, 5, 10));
+
+        lblInfoCliente = new JLabel();
+        actualizarEtiquetaCliente();
+        panelSuperior.add(lblInfoCliente);
+
+        JPanel panelBotonesCuenta = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        JButton btnActualizarDatos = new JButton("Actualizar Mis Datos");
+        JButton btnCerrarSesion = new JButton("Cerrar Sesión");
+        panelBotonesCuenta.add(btnActualizarDatos);
+        panelBotonesCuenta.add(btnCerrarSesion);
+        panelSuperior.add(panelBotonesCuenta);
+
+        add(panelSuperior, BorderLayout.NORTH);
+
+        // Panel Central: Catálogo con tu PanelTabla (Izquierda) y Carrito (Derecha)
+        JSplitPane splitCentral = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
+        splitCentral.setResizeWeight(0.58);
+
+        // Catálogo reutilizando PanelTabla
+        JPanel panelIzquierdo = new JPanel(new BorderLayout(5, 5));
+        panelTablaCatalogo = new PanelTabla();
+        panelIzquierdo.add(panelTablaCatalogo, BorderLayout.CENTER);
+
         JButton btnAgregarCarrito = new JButton("Agregar al Carrito");
-        JPanel panelBtnCatalogo = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        panelBtnCatalogo.add(btnAgregarCarrito);
-        panelCatalogo.add(panelBtnCatalogo, BorderLayout.SOUTH);
+        panelIzquierdo.add(btnAgregarCarrito, BorderLayout.SOUTH);
 
-
-        JPanel panelCarrito = new JPanel(new BorderLayout());
-        panelCarrito.setBorder(BorderFactory.createTitledBorder("Tu Carrito de Compras"));
-        
-        String[] columnasCarrito = {"ISBN", "Título", "Cantidad", "Subtotal"};
-        modeloCarrito = new DefaultTableModel(columnasCarrito, 0);
+        // Carrito
+        JPanel panelDerecho = new JPanel(new BorderLayout(5, 5));
+        panelDerecho.setBorder(BorderFactory.createTitledBorder("Carrito de Compras"));
+        modeloCarrito = new DefaultTableModel(new String[]{"ISBN", "Título", "Cant.", "Subtotal"}, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
         tablaCarrito = new JTable(modeloCarrito);
-        
-        panelCarrito.add(new JScrollPane(tablaCarrito), BorderLayout.CENTER);
-        
-        JPanel panelCheckout = new JPanel(new FlowLayout(FlowLayout.RIGHT, 20, 10));
-        
-        lblDescuento = new JLabel("Descuento: $0.0");
-        lblDescuento.setForeground(new Color(0, 128, 0));
-        
-        lblTotalPagar = new JLabel("Total a Pagar: $0.0");
-        lblTotalPagar.setFont(new Font("Arial", Font.BOLD, 16));
-        
-        JButton btnFinalizarCompra = new JButton("Finalizar Compra");
+        panelDerecho.add(new JScrollPane(tablaCarrito), BorderLayout.CENTER);
 
-        panelCheckout.add(lblDescuento);
-        panelCheckout.add(lblTotalPagar);
-        panelCheckout.add(btnFinalizarCompra);
-        panelCarrito.add(panelCheckout, BorderLayout.SOUTH);
+        JPanel panelSurCarrito = new JPanel(new BorderLayout(5, 5));
+        lblResumenTotales = new JLabel("Total: $0.0");
+        lblResumenTotales.setFont(new Font("Arial", Font.BOLD, 12));
+        panelSurCarrito.add(lblResumenTotales, BorderLayout.NORTH);
 
-        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, panelCatalogo, panelCarrito);
-        splitPane.setDividerLocation(250);
-        add(splitPane, BorderLayout.CENTER);
+        JPanel panelBotonesCarrito = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JButton btnQuitar = new JButton("Quitar Item");
+        JButton btnComprar = new JButton("Confirmar Compra");
+        panelBotonesCarrito.add(btnQuitar);
+        panelBotonesCarrito.add(btnComprar);
+        panelSurCarrito.add(panelBotonesCarrito, BorderLayout.SOUTH);
 
-        btnAgregarCarrito.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                agregarAlCarrito();
-            }
-        });
-        
-        btnFinalizarCompra.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                if (modeloCarrito.getRowCount() == 0) {
-                    JOptionPane.showMessageDialog(VentanaCliente.this, "El carrito esta vacio.", "Atencion", JOptionPane.WARNING_MESSAGE);
-                } else {
-                    VentanaRecibo ventanaRecibo = new VentanaRecibo(VentanaCliente.this, modeloCarrito, modeloCatalogo, clienteActual);
-                    ventanaRecibo.setVisible(true);
-                    actualizarTotal();
-                }
-            }
+        panelDerecho.add(panelSurCarrito, BorderLayout.SOUTH);
+
+        splitCentral.setLeftComponent(panelIzquierdo);
+        splitCentral.setRightComponent(panelDerecho);
+        add(splitCentral, BorderLayout.CENTER);
+
+        // Eventos
+        btnAgregarCarrito.addActionListener(e -> agregarLibroAlCarrito());
+        btnQuitar.addActionListener(e -> quitarDelCarrito());
+        btnComprar.addActionListener(e -> procesarCompra());
+        btnActualizarDatos.addActionListener(e -> mostrarDialogoActualizarDatos());
+        btnCerrarSesion.addActionListener(e -> {
+            new VentanaLogin(gestor).setVisible(true);
+            dispose();
         });
     }
 
-    private void agregarAlCarrito() {
-        int filaSeleccionada = tablaCatalogo.getSelectedRow();
-        if (filaSeleccionada == -1) {
-            JOptionPane.showMessageDialog(this, "Seleccione un libro del catalogo primero.", "Error", JOptionPane.ERROR_MESSAGE);
+    private void actualizarEtiquetaCliente() {
+        String texto = "Cliente: " + clienteActual.getNombreCompleto() + " | Tipo: " + clienteActual.getTipoCliente();
+        if (clienteActual instanceof ClientePremium) {
+            texto += " (15% Descuento Exclusivo + Envío Gratis)";
+        }
+        lblInfoCliente.setText(texto);
+    }
+
+    private void cargarCatalogo() {
+        panelTablaCatalogo.limpiarTabla();
+        for (Libro l : gestor.getCatalogo()) {
+            panelTablaCatalogo.agregarLibroTabla(l);
+        }
+    }
+
+    private void agregarLibroAlCarrito() {
+        String isbn = panelTablaCatalogo.getIsbnSeleccionado();
+        if (isbn == null) {
+            JOptionPane.showMessageDialog(this, "Seleccione un libro del catálogo.");
             return;
         }
 
-        String isbn = (String) modeloCatalogo.getValueAt(filaSeleccionada, 0);
-        String titulo = (String) modeloCatalogo.getValueAt(filaSeleccionada, 1);
-        double precio = (double) modeloCatalogo.getValueAt(filaSeleccionada, 3);
-        int stockDisponible = (int) modeloCatalogo.getValueAt(filaSeleccionada, 4);
+        Libro libro = gestor.buscarLibroPorIsbn(isbn);
 
-        String cantStr = JOptionPane.showInputDialog(this, "¿Cuántas unidades desea comprar de '" + titulo + "'? \nStock disponible: " + stockDisponible);
-        
-        if (cantStr != null && !cantStr.trim().isEmpty()) {
-            try {
-                int cantidadPedida = Integer.parseInt(cantStr);
+        String cantStr = JOptionPane.showInputDialog(this, "Cantidad a llevar:", "1");
+        if (cantStr == null) return;
 
-                if (cantidadPedida <= 0) {
-                    JOptionPane.showMessageDialog(this, "La cantidad debe ser mayor a cero.", "Error", JOptionPane.ERROR_MESSAGE);
-                    return;
-                } if (cantidadPedida > stockDisponible) {
-                    JOptionPane.showMessageDialog(this, "Error: Stock insuficiente. Solo hay " + stockDisponible + " unidades disponibles.", "Stock Agotado", JOptionPane.ERROR_MESSAGE);
+        try {
+            int cantidad = Integer.parseInt(cantStr.trim());
+            if (!gestor.validarStock(libro, cantidad)) {
+                JOptionPane.showMessageDialog(this, "Cantidad inválida o sin stock suficiente.", "Error", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            for (ItemCarrito item : carrito) {
+                if (item.getLibro().getIsbn().equals(isbn)) {
+                    int nuevaCant = item.getCantidad() + cantidad;
+                    if (!gestor.validarStock(libro, nuevaCant)) {
+                        JOptionPane.showMessageDialog(this, "Supera el stock disponible.", "Error", JOptionPane.WARNING_MESSAGE);
+                        return;
+                    }
+                    item.setCantidad(nuevaCant);
+                    actualizarTablaCarrito();
                     return;
                 }
-
-                double subtotal = precio * cantidadPedida;
-                modeloCarrito.addRow(new Object[]{isbn, titulo, cantidadPedida, subtotal});
-                actualizarTotal();
-
-            } catch (NumberFormatException ex) {
-                JOptionPane.showMessageDialog(this, "Por favor, ingrese un número válido.", "Error", JOptionPane.ERROR_MESSAGE);
             }
+
+            carrito.add(new ItemCarrito(libro, cantidad));
+            actualizarTablaCarrito();
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(this, "Ingrese un número válido.");
         }
     }
-    
-    private void actualizarTotal() {
-        double subtotal = 0;
-        
-        for (int i = 0; i < modeloCarrito.getRowCount(); i++) {
-            subtotal += (double) modeloCarrito.getValueAt(i, 3);
-        }
-        
-        double descuento = clienteActual.calcularDescuento(subtotal);
-        double totalFinal = subtotal - descuento;
 
-        lblDescuento.setText("Descuento: -$" + descuento);
-        lblTotalPagar.setText("Total a Pagar: $" + totalFinal);
+    private void quitarDelCarrito() {
+        int fila = tablaCarrito.getSelectedRow();
+        if (fila != -1) {
+            carrito.remove(fila);
+            actualizarTablaCarrito();
+        }
+    }
+
+    private void actualizarTablaCarrito() {
+        modeloCarrito.setRowCount(0);
+        for (ItemCarrito item : carrito) {
+            modeloCarrito.addRow(new Object[]{
+                item.getLibro().getIsbn(),
+                item.getLibro().getTitulo(),
+                item.getCantidad(),
+                String.format("$%.2f", item.calcularSubtotal())
+            });
+        }
+
+        double subtotal = gestor.calcularSubtotalCarrito(carrito);
+        double iva = gestor.calcularImpuestosCarrito(carrito);
+        double descuento = gestor.calcularDescuentoCliente(carrito, clienteActual);
+        double total = gestor.calcularTotalCompra(carrito, clienteActual);
+
+        lblResumenTotales.setText(String.format(
+            "Subtotal: $%.2f | IVA: $%.2f | Descuento: -$%.2f | TOTAL: $%.2f",
+            subtotal, iva, descuento, total
+        ));
+    }
+
+    private void procesarCompra() {
+        if (carrito.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "El carrito está vacío.");
+            return;
+        }
+
+        try {
+            double subtotal = gestor.calcularSubtotalCarrito(carrito);
+            double iva = gestor.calcularImpuestosCarrito(carrito);
+            double descuento = gestor.calcularDescuentoCliente(carrito, clienteActual);
+            double total = gestor.calcularTotalCompra(carrito, clienteActual);
+
+            List<ItemCarrito> itemsComprados = new ArrayList<>(carrito);
+
+            gestor.confirmarCompra(carrito);
+
+            new VentanaRecibo(this, clienteActual, itemsComprados, subtotal, iva, descuento, total).setVisible(true);
+
+            carrito.clear();
+            actualizarTablaCarrito();
+            cargarCatalogo();
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage(), "Error en la compra", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void mostrarDialogoActualizarDatos() {
+        JTextField txtNombre = new JTextField(clienteActual.getNombre());
+        JTextField txtApellido = new JTextField(clienteActual.getApellido());
+        JTextField txtCorreo = new JTextField(clienteActual.getCorreo());
+        JTextField txtDireccion = new JTextField(clienteActual.getDireccion());
+        JTextField txtTelefono = new JTextField(clienteActual.getTelefono());
+        JPasswordField txtPass = new JPasswordField(clienteActual.getContrasena());
+
+        JPanel panel = new JPanel(new GridLayout(6, 2, 5, 5));
+        panel.add(new JLabel("Nombre:"));
+        panel.add(txtNombre);
+        panel.add(new JLabel("Apellido:"));
+        panel.add(txtApellido);
+        panel.add(new JLabel("Correo:"));
+        panel.add(txtCorreo);
+        panel.add(new JLabel("Dirección de envío:"));
+        panel.add(txtDireccion);
+        panel.add(new JLabel("Teléfono:"));
+        panel.add(txtTelefono);
+        panel.add(new JLabel("Contraseña:"));
+        panel.add(txtPass);
+
+        int opcion = JOptionPane.showConfirmDialog(this, panel, "Actualizar Datos Personales",
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+
+        if (opcion == JOptionPane.OK_OPTION) {
+            clienteActual.setNombre(txtNombre.getText().trim());
+            clienteActual.setApellido(txtApellido.getText().trim());
+            clienteActual.setCorreo(txtCorreo.getText().trim());
+            clienteActual.setDireccion(txtDireccion.getText().trim());
+            clienteActual.setTelefono(txtTelefono.getText().trim());
+            clienteActual.setContrasena(new String(txtPass.getPassword()));
+
+            if (gestor.actualizarDatosCliente(clienteActual)) {
+                actualizarEtiquetaCliente();
+                JOptionPane.showMessageDialog(this, "Datos actualizados correctamente en la base de datos.");
+            } else {
+                JOptionPane.showMessageDialog(this, "Error al actualizar los datos.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
     }
 }
