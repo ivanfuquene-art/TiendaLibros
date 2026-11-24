@@ -1,48 +1,42 @@
 package co.edu.uptc.negocio;
 
 import co.edu.uptc.persistencia.LibroDAO;
-import java.util.ArrayList;
+import co.edu.uptc.persistencia.ClienteDAO;
 import java.util.List;
 
 public class GestorTienda {
 
     private LibroDAO libroDAO;
-    private List<Cliente> clientes;
+    private ClienteDAO clienteDAO;
 
     public GestorTienda() {
         this.libroDAO = new LibroDAO();
-        this.clientes = new ArrayList<>();
-        cargarUsuariosPorDefecto();
+        this.clienteDAO = new ClienteDAO();
     }
 
-
-    private void cargarUsuariosPorDefecto() {
-        clientes.add(new ClienteRegular("Juan Pérez", "regular@tienda.com", "Calle 10 # 15-20", "3001234567"));
-        clientes.add(new ClientePremium("Ana Gómez", "premium@tienda.com", "Carrera 12 # 20-30", "3109876543", 0.10));
-    }
-
+    //GESTION DE CLIENTES
     public boolean registrarCliente(Cliente nuevoCliente) {
-        if (autenticarCliente(nuevoCliente.getCorreo()) != null) {
+        if (nuevoCliente == null || clienteDAO.existeCorreo(nuevoCliente.getCorreo().trim())) {
             return false;
         }
-        clientes.add(nuevoCliente);
-        return true;
+        return clienteDAO.registrarCliente(nuevoCliente);
     }
 
-    public Cliente autenticarCliente(String correo) {
-        for (Cliente c : clientes) {
-            if (c.getCorreo().equalsIgnoreCase(correo.trim())) {
-                return c;
-            }
+    public Cliente iniciarSesionCliente(String correo, String contrasena) {
+        if (correo == null || contrasena == null || correo.trim().isEmpty() || contrasena.isEmpty()) {
+            return null;
         }
-        return null;
+        return clienteDAO.iniciarSesion(correo.trim(), contrasena);
     }
 
-    public List<Cliente> getClientes() {
-        return clientes;
+    public boolean actualizarDatosCliente(Cliente cliente) {
+        if (cliente == null || cliente.getIdCliente() <= 0) {
+            return false;
+        }
+        return clienteDAO.actualizarDatosCliente(cliente);
     }
 
-
+    //GESTION DE LIBROS
     public boolean registrarLibro(Libro libro) {
         return libroDAO.registrarLibro(libro);
     }
@@ -68,7 +62,7 @@ public class GestorTienda {
         return libroDAO.eliminarLibro(isbn);
     }
 
-
+    //CARRITO
     public boolean validarStock(Libro libro, int cantidadSolicitada) {
         return libro != null && cantidadSolicitada > 0 && libro.getStock() >= cantidadSolicitada;
     }
@@ -89,17 +83,25 @@ public class GestorTienda {
         return impuestos;
     }
 
+    public double calcularDescuentoCliente(List<ItemCarrito> carrito, Cliente clienteAutenticado) {
+        if (clienteAutenticado == null) {
+            return 0.0;
+        }
+        double totalBruto = calcularSubtotalCarrito(carrito) + calcularImpuestosCarrito(carrito);
+        return clienteAutenticado.calcularDescuento(totalBruto);
+    }
+
     public double calcularTotalCompra(List<ItemCarrito> carrito, Cliente clienteAutenticado) {
         double subtotal = calcularSubtotalCarrito(carrito);
         double impuestos = calcularImpuestosCarrito(carrito);
-        double totalBruto = subtotal + impuestos;
-        double descuento = (clienteAutenticado != null) ? clienteAutenticado.calcularDescuento(totalBruto) : 0.0;
-        return totalBruto - descuento;
+        double totalTodo = subtotal + impuestos;
+        double descuento = calcularDescuentoCliente(carrito, clienteAutenticado);
+        return totalTodo - descuento;
     }
 
     public void confirmarCompra(List<ItemCarrito> carrito) throws Exception {
         if (carrito == null || carrito.isEmpty()) {
-            throw new Exception("El carrito de compras está vacío.");
+            throw new Exception("El carrito de compras esta vacio.");
         }
         for (ItemCarrito item : carrito) {
             Libro libroBD = buscarLibroPorIsbn(item.getLibro().getIsbn());
@@ -110,10 +112,10 @@ public class GestorTienda {
         for (ItemCarrito item : carrito) {
             Libro libroBD = buscarLibroPorIsbn(item.getLibro().getIsbn());
             int nuevoStock = libroBD.getStock() - item.getCantidad();
-            
+
             libroBD.setStock(nuevoStock);
             boolean actualizado = libroDAO.actualizarStock(libroBD.getIsbn(), nuevoStock);
-            
+
             if (!actualizado) {
                 throw new Exception("Error al actualizar el inventario en la base de datos para ISBN: " + libroBD.getIsbn());
             }
